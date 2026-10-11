@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>앤틱 아워글래스 타이머 & 알람</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 50% 20%, #1f1b18 0%, #0d0b0a 100%);
+      color: #e5ded3;
+      user-select: none;
+    }
+    .cinzel {
+      font-family: 'Cinzel', serif;
+    }
+    .gold-glow {
+      text-shadow: 0 0 15px rgba(220, 168, 86, 0.45);
+    }
+    .glass-card {
+      background: rgba(30, 26, 23, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    }
+    .glass-input {
+      background: rgba(18, 15, 13, 0.85);
+      border: 1px solid rgba(197, 160, 89, 0.3);
+      color: #f7e7ce;
+      transition: all 0.2s ease;
+    }
+    .glass-input:focus {
+      outline: none;
+      border-color: #e2a843;
+      box-shadow: 0 0 12px rgba(226, 168, 67, 0.35);
+    }
+    /* Smooth Flip container */
+    .hourglass-wrapper {
+      transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-style: preserve-3d;
+    }
+    .hourglass-flipped {
+      transform: rotate(180deg);
+    }
+    /* Custom Scrollbar for sleek UI */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(200, 160, 90, 0.25);
+      border-radius: 9999px;
+    }
+    @keyframes alarmPulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+      50% { box-shadow: 0 0 50px rgba(239, 68, 68, 0.85); }
+    }
+    .alarm-active {
+      animation: alarmPulse 1.2s infinite ease-in-out;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center justify-center p-3 md:p-6 overflow-x-hidden">
+  <main class="w-full max-w-4xl mx-auto flex flex-col items-center">
+    
+    <!-- Title and Subtitle -->
+    <header class="text-center mb-5">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-950/40 border border-amber-500/20 text-amber-300/80 text-xs tracking-widest uppercase mb-2">
+        <i class="fa-solid fa-hourglass-half"></i> Precision Sand Timer
+      </div>
+      <h1 class="text-3xl md:text-5xl font-bold cinzel text-amber-200 gold-glow tracking-wider">
+        CHRONOS HOURGLASS
+      </h1>
+      <p class="text-xs md:text-sm text-stone-400 mt-1">설정한 시간 동안 모래가 자연스럽게 흘러내리는 인터랙티브 알람</p>
+    </header>
+
+    <!-- Main Workspace Grid -->
+    <div class="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+      
+      <!-- Left / Top Column: Realistic Hourglass Canvas -->
+      <section class="lg:col-span-6 flex flex-col items-center justify-center">
+        <div class="glass-card rounded-3xl p-6 relative flex flex-col items-center justify-center w-full max-w-sm">
+          <!-- Glass Top / Bottom Ornaments -->
+          <div class="absolute top-3 w-32 h-1.5 rounded-full bg-gradient-to-r from-transparent via-amber-500/40 to-transparent"></div>
+          <div class="absolute bottom-3 w-32 h-1.5 rounded-full bg-gradient-to-r from-transparent via-amber-500/40 to-transparent"></div>
+
+          <!-- Flip Animated Container -->
+          <div id="hourglassWrapper" class="hourglass-wrapper relative flex items-center justify-center">
+            <canvas id="hourglassCanvas" width="280" height="380" class="block drop-shadow-2xl"></canvas>
+          </div>
+
+          <!-- Bottom Status Pill -->
+          <div class="mt-4 flex items-center gap-3">
+            <span id="statusIndicator" class="inline-flex items-center gap-1.5 text-xs font-medium text-stone-400 bg-stone-900/60 px-3 py-1 rounded-full border border-stone-800">
+              <span class="w-2 h-2 rounded-full bg-stone-500"></span> 대기 중
+            </span>
+            <button id="flipBtn" title="모래시계 뒤집기" class="text-xs flex items-center gap-1 text-amber-300 hover:text-amber-100 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-600/30 px-2.5 py-1 rounded-full transition">
+              <i class="fa-solid fa-repeat"></i> 뒤집기
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right / Controls Column -->
+      <section class="lg:col-span-6 flex flex-col gap-5 w-full max-w-md mx-auto">
+        
+        <!-- Big Digital Display Card -->
+        <div class="glass-card rounded-3xl p-6 text-center border-amber-500/30 relative overflow-hidden">
+          <div class="text-xs uppercase tracking-widest text-stone-400 font-semibold mb-1">REMAINING TIME</div>
+          <div id="digitalTime" class="text-5xl md:text-6xl font-bold font-mono tracking-tight text-amber-100 gold-glow">
+            00:05:00
+          </div>
+          
+          <!-- Progress bar -->
+          <div class="w-full bg-stone-900/80 rounded-full h-2 mt-4 overflow-hidden border border-amber-950">
+            <div id="progressBar" class="bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-300 h-full rounded-full transition-all duration-300" style="width: 100%;"></div>
+          </div>
+          <div class="flex justify-between items-center text-[11px] text-stone-500 mt-1 font-mono">
+            <span id="progressPercent">100%</span>
+            <span id="totalTimeDisplay">총 5분 0초</span>
+          </div>
+        </div>
+
+        <!-- Time Setup Panel (Hidden during countdown) -->
+        <div id="setupPanel" class="glass-card rounded-3xl p-5 transition-all">
+          <label class="block text-xs font-semibold text-amber-300 uppercase tracking-wider mb-3 text-center">
+            알람 시간 설정
+          </label>
+          
+          <!-- H / M / S Inputs -->
+          <div class="flex items-center justify-center gap-3 mb-4">
+            <!-- Hours -->
+            <div class="flex flex-col items-center">
+              <input type="number" id="inputHours" min="0" max="23" value="0" class="glass-input text-2xl font-mono text-center w-16 h-12 rounded-xl font-bold">
+              <span class="text-[10px] text-stone-400 mt-1 uppercase">시간</span>
+            </div>
+            <span class="text-2xl text-amber-500/60 font-bold mb-4">:</span>
+            <!-- Minutes -->
+            <div class="flex flex-col items-center">
+              <input type="number" id="inputMinutes" min="0" max="59" value="5" class="glass-input text-2xl font-mono text-center w-16 h-12 rounded-xl font-bold">
+              <span class="text-[10px] text-stone-400 mt-1 uppercase">분</span>
+            </div>
+            <span class="text-2xl text-amber-500/60 font-bold mb-4">:</span>
+            <!-- Seconds -->
+            <div class="flex flex-col items-center">
+              <input type="number" id="inputSeconds" min="0" max="59" value="0" class="glass-input text-2xl font-mono text-center w-16 h-12 rounded-xl font-bold">
+              <span class="text-[10px] text-stone-400 mt-1 uppercase">초</span>
+            </div>
+          </div>
+
+          <!-- Quick Presets -->
+          <div class="flex flex-wrap items-center justify-center gap-2">
+            <button class="preset-btn px-2.5 py-1 text-xs font-medium rounded-lg bg-stone-900/80 hover:bg-amber-900/50 border border-stone-700/60 hover:border-amber-500/40 text-stone-300 hover:text-amber-200 transition" data-sec="60">+1분</button>
+            <button class="preset-btn px-2.5 py-1 text-xs font-medium rounded-lg bg-stone-900/80 hover:bg-amber-900/50 border border-stone-700/60 hover:border-amber-500/40 text-stone-300 hover:text-amber-200 transition" data-sec="180">+3분</button>
+            <button class="preset-btn px-2.5 py-1 text-xs font-medium rounded-lg bg-stone-900/80 hover:bg-amber-900/50 border border-stone-700/60 hover:border-amber-500/40 text-stone-300 hover:text-amber-200 transition" data-sec="300">+5분</button>
+            <button class="preset-btn px-2.5 py-1 text-xs font-medium rounded-lg bg-stone-900/80 hover:bg-amber-900/50 border border-stone-700/60 hover:border-amber-500/40 text-stone-300 hover:text-amber-200 transition" data-sec="600">+10분</button>
+            <button class="preset-btn px-2.5 py-1 text-xs font-medium rounded-lg bg-stone-900/80 hover:bg-amber-900/50 border border-stone-700/60 hover:border-amber-500/40 text-stone-300 hover:text-amber-200 transition" data-sec="1500">뽀모도로(25m)</button>
+            <button id="clearPresetBtn" class="px-2.5 py-1 text-xs font-medium rounded-lg bg-red-950/40 hover:bg-red-900/60 border border-red-700/40 text-red-300 transition">초기화</button>
+          </div>
+        </div>
+
+        <!-- Primary Action Buttons -->
+        <div class="grid grid-cols-3 gap-3">
+          <button id="startBtn" class="py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-stone-950 font-bold text-sm md:text-base flex items-center justify-center gap-2 shadow-lg shadow-amber-900/40 transition active:scale-95">
+            <i class="fa-solid fa-play"></i> 시작
+          </button>
+          <button id="pauseBtn" disabled class="py-3 px-4 rounded-2xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-sm md:text-base flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition active:scale-95">
+            <i class="fa-solid fa-pause"></i> 일시정지
+          </button>
+          <button id="resetBtn" class="py-3 px-4 rounded-2xl bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-sm md:text-base flex items-center justify-center gap-2 transition active:scale-95">
+            <i class="fa-solid fa-arrow-rotate-left"></i> 리셋
+          </button>
+        </div>
+
+        <!-- Audio and Settings Toolbar -->
+        <div class="glass-card rounded-2xl px-4 py-2.5 flex items-center justify-between text-xs text-stone-400">
+          <div class="flex items-center gap-3">
+            <button id="muteToggle" class="flex items-center gap-1.5 hover:text-amber-300 transition">
+              <i id="muteIcon" class="fa-solid fa-volume-high text-amber-400"></i>
+              <span id="muteText">소리 켬</span>
+            </button>
+            <span class="text-stone-700">|</span>
+            <button id="soundTestBtn" class="hover:text-amber-300 transition flex items-center gap-1">
+              <i class="fa-solid fa-bell"></i> 벨소리 미리듣기
+            </button>
+          </div>
+          <span class="text-[11px] text-stone-500">Web Audio API</span>
+        </div>
+
+      </section>
+    </div>
+
+    <!-- Alarm Modal / Dismiss Overlay -->
+    <div id="alarmOverlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="glass-card max-w-sm w-full p-6 rounded-3xl text-center border-red-500/50 alarm-active">
+        <div class="w-16 h-16 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center mx-auto mb-4 text-2xl border border-red-500/30 animate-bounce">
+          <i class="fa-solid fa-bell"></i>
+        </div>
+        <h3 class="text-2xl font-bold cinzel text-amber-200 mb-1">시간 종료!</h3>
+        <p class="text-sm text-stone-300 mb-6">설정한 모래시계 시간이 모두 경과했습니다.</p>
+        <button id="dismissAlarmBtn" class="w-full py-3 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold transition shadow-lg shadow-red-900/50 active:scale-95">
+          알람 끄기
+        </button>
+      </div>
+    </div>
+  </main>
+
+<script>
+  /* Audio System (No external audio files) */
+  let audioCtx = null;
+  let isMuted = false;
+  let alarmIntervalId = null;
+
+  function initAudioContext() {
+    if (!audioCtx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContext();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  // Play delicate chime chime sound
+  function playChime(freq = 587.33, duration = 0.9, delay = 0) {
+    if (isMuted) return;
+    initAudioContext();
+    
+    setTimeout(() => {
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+        // Natural exponential decay envelope
+        gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.35, audioCtx.currentTime + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        console.error("Audio error", e);
+      }
+    }, delay * 1000);
+  }
+
+  // Melodic Alarm sequence
+  function startAlarmSound() {
+    if (isMuted) return;
+    stopAlarmSound();
+    
+    function playMelody() {
+      // D5, F#5, A5, D6 harmonic chime
+      playChime(587.33, 0.8, 0.0);
+      playChime(739.99, 0.8, 0.2);
+      playChime(880.00, 1.2, 0.4);
+      playChime(1174.66, 1.5, 0.6);
+    }
+    
+    playMelody();
+    alarmIntervalId = setInterval(playMelody, 2000);
+  }
+
+  function stopAlarmSound() {
+    if (alarmIntervalId) {
+      clearInterval(alarmIntervalId);
+      alarmIntervalId = null;
+    }
+  }
+
+  /* Timer State */
+  let totalTime = 300;       // seconds (Default 5 min)
+  let remainingTime = 300;   // seconds
+  let timerState = 'idle';   // 'idle' | 'running' | 'paused' | 'finished'
+  let timerInterval = null;
+  let lastTimestamp = 0;
+  let isFlipped = false;
+
+  /* DOM Elements */
+  const canvas = document.getElementById('hourglassCanvas');
+  const ctx = canvas.getContext('2d');
+  const hourglassWrapper = document.getElementById('hourglassWrapper');
+  const digitalTime = document.getElementById('digitalTime');
+  const progressBar = document.getElementById('progressBar');
+  const progressPercent = document.getElementById('progressPercent');
+  const totalTimeDisplay = document.getElementById('totalTimeDisplay');
+  const statusIndicator = document.getElementById('statusIndicator');
+  
+  const inputHours = document.getElementById('inputHours');
+  const inputMinutes = document.getElementById('inputMinutes');
+  const inputSeconds = document.getElementById('inputSeconds');
+  const presetBtns = document.querySelectorAll('.preset-btn');
+  const clearPresetBtn = document.getElementById('clearPresetBtn');
+  
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const flipBtn = document.getElementById('flipBtn');
+  const muteToggle = document.getElementById('muteToggle');
+  const muteIcon = document.getElementById('muteIcon');
+  const muteText = document.getElementById('muteText');
+  const soundTestBtn = document.getElementById('soundTestBtn');
+  const alarmOverlay = document.getElementById('alarmOverlay');
+  const dismissAlarmBtn = document.getElementById('dismissAlarmBtn');
+
+  /* Sand Particle Simulator */
+  const particles = [];
+  const MAX_PARTICLES = 50;
+
+  function spawnSandParticle(x, y) {
+    if (particles.length > MAX_PARTICLES) return;
+    particles.push({
+      x: x + (Math.random() - 0.5) * 2.5,
+      y: y,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: 1.5 + Math.random() * 2.2,
+      size: 1 + Math.random() * 1.5,
+      alpha: 0.7 + Math.random() * 0.3
+    });
+  }
+
+  function updateAndDrawParticles(ctx, neckX, neckY, bottomImpactY) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.y += p.vy;
+      p.x += p.vx;
+      p.vy += 0.08; // gravity
+
+      if (p.y >= bottomImpactY) {
+        particles.splice(i, 1);
+        continue;
+      }
+
+      ctx.fillStyle = `rgba(235, 185, 95, ${p.alpha})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  /* Rendering the Hourglass and Sand */
+  function renderHourglass() {
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const centerX = w / 2;
+    const neckY = h / 2;
+    const topY = 35;
+    const bottomY = h - 35;
+    const bulbRadius = 88;
+    const neckWidth = 9;
+
+    // Fraction elapsed: 0 when full top, 1 when empty top
+    const fraction = totalTime > 0 ? (totalTime - remainingTime) / totalTime : 0;
+    const topFraction = Math.max(0, 1 - fraction); // 1 -> 0
+    const bottomFraction = Math.min(1, fraction);   // 0 -> 1
+
+    /* 1. Wooden Stand & Brass Columns */
+    // Top Plate
+    ctx.fillStyle = '#2b1b11';
+    ctx.strokeStyle = '#c5a059';
+    ctx.lineWidth = 2;
+    roundRect(ctx, centerX - 110, topY - 18, 220, 16, 6, true, true);
+    // Bottom Plate
+    roundRect(ctx, centerX - 110, bottomY + 2, 220, 16, 6, true, true);
+
+    // Brass Pillars (Left & Right)
+    drawPillar(ctx, centerX - 95, topY - 2, bottomY + 2);
+    drawPillar(ctx, centerX + 95, topY - 2, bottomY + 2);
+
+    /* 2. Glass Outline Path */
+    ctx.save();
+    ctx.beginPath();
+    // Top bulb outer
+    ctx.moveTo(centerX - bulbRadius, topY);
+    ctx.bezierCurveTo(centerX - bulbRadius, neckY - 20, centerX - neckWidth, neckY - 15, centerX - neckWidth, neckY);
+    // Bottom bulb outer
+    ctx.bezierCurveTo(centerX - neckWidth, neckY + 15, centerX - bulbRadius, neckY + 20, centerX - bulbRadius, bottomY);
+    ctx.lineTo(centerX + bulbRadius, bottomY);
+    // Back up right side
+    ctx.bezierCurveTo(centerX + bulbRadius, neckY + 20, centerX + neckWidth, neckY + 15, centerX + neckWidth, neckY);
+    ctx.bezierCurveTo(centerX + neckWidth, neckY - 15, centerX + bulbRadius, neckY - 20, centerX + bulbRadius, topY);
+    ctx.closePath();
+
+    // Fill glass interior background
+    const glassBg = ctx.createLinearGradient(0, topY, 0, bottomY);
+    glassBg.addColorStop(0, 'rgba(255, 255, 255, 0.04)');
+    glassBg.addColorStop(0.5, 'rgba(255, 255, 255, 0.01)');
+    glassBg.addColorStop(1, 'rgba(255, 255, 255, 0.04)');
+    ctx.fillStyle = glassBg;
+    ctx.fill();
+
+    // Clip inner region for sand drawing
+    ctx.clip();
+
+    /* 3. Sand in Top Bulb */
+    if (topFraction > 0.001) {
+      const topHeightMax = neckY - topY - 15;
+      const currentSandH = topHeightMax * topFraction;
+      const sandTopY = neckY - 10 - currentSandH;
+
+      ctx.beginPath();
+      ctx.moveTo(centerX - bulbRadius, sandTopY);
+      // Funnel depression in center if timer is running
+      if (timerState === 'running' && topFraction < 0.98) {
+        ctx.quadraticCurveTo(centerX, sandTopY + 12, centerX + bulbRadius, sandTopY);
+      } else {
+        ctx.lineTo(centerX + bulbRadius, sandTopY);
+      }
+      ctx.bezierCurveTo(centerX + bulbRadius, neckY - 20, centerX + neckWidth, neckY - 10, centerX, neckY);
+      ctx.bezierCurveTo(centerX - neckWidth, neckY - 10, centerX - bulbRadius, neckY - 20, centerX - bulbRadius, sandTopY);
+      ctx.closePath();
+
+      const topSandGrad = ctx.createLinearGradient(centerX - bulbRadius, topY, centerX + bulbRadius, neckY);
+      topSandGrad.addColorStop(0, '#f5ce80');
+      topSandGrad.addColorStop(0.5, '#d89e47');
+      topSandGrad.addColorStop(1, '#b07525');
+      ctx.fillStyle = topSandGrad;
+      ctx.fill();
+    }
+
+    /* 4. Sand in Bottom Bulb (Accumulating Mound) */
+    if (bottomFraction > 0.001) {
+      const bottomHeightMax = bottomY - neckY - 15;
+      const currentBottomH = bottomHeightMax * bottomFraction;
+      const moundPeakY = bottomY - currentBottomH;
+
+      ctx.beginPath();
+      ctx.moveTo(centerX - bulbRadius, bottomY);
+      // Natural cone shape that flattens as it fills
+      const peakX = centerX;
+      ctx.quadraticCurveTo(peakX - 35, moundPeakY + 4, peakX, moundPeakY);
+      ctx.quadraticCurveTo(peakX + 35, moundPeakY + 4, centerX + bulbRadius, bottomY);
+      ctx.closePath();
+
+      const bottomSandGrad = ctx.createLinearGradient(centerX, moundPeakY, centerX, bottomY);
+      bottomSandGrad.addColorStop(0, '#f9dc98');
+      bottomSandGrad.addColorStop(0.4, '#d89e47');
+      bottomSandGrad.addColorStop(1, '#9e6417');
+      ctx.fillStyle = bottomSandGrad;
+      ctx.fill();
+    }
+
+    /* 5. Falling Sand Stream & Particles */
+    const bottomImpactY = bottomY - (bottomY - neckY - 15) * bottomFraction;
+    if (timerState === 'running' && topFraction > 0.001) {
+      // Sand stream
+      ctx.beginPath();
+      ctx.moveTo(centerX - 1.2, neckY - 4);
+      ctx.lineTo(centerX + 1.2, neckY - 4);
+      ctx.lineTo(centerX + 1.6, bottomImpactY);
+      ctx.lineTo(centerX - 1.6, bottomImpactY);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(247, 212, 137, 0.95)';
+      ctx.fill();
+
+      // Spawn falling particles
+      spawnSandParticle(centerX, neckY + 2);
+      spawnSandParticle(centerX, neckY + 12);
+    }
+
+    // Render particles
+    updateAndDrawParticles(ctx, centerX, neckY, bottomImpactY);
+
+    ctx.restore(); // Restore from sand clip
+
+    /* 6. Glass Highlights & Gloss Reflection */
+    ctx.save();
+    // Glass Outer Stroke
+    ctx.beginPath();
+    ctx.moveTo(centerX - bulbRadius, topY);
+    ctx.bezierCurveTo(centerX - bulbRadius, neckY - 20, centerX - neckWidth, neckY - 15, centerX - neckWidth, neckY);
+    ctx.bezierCurveTo(centerX - neckWidth, neckY + 15, centerX - bulbRadius, neckY + 20, centerX - bulbRadius, bottomY);
+    ctx.lineTo(centerX + bulbRadius, bottomY);
+    ctx.bezierCurveTo(centerX + bulbRadius, neckY + 20, centerX + neckWidth, neckY + 15, centerX + neckWidth, neckY);
+    ctx.bezierCurveTo(centerX + neckWidth, neckY - 15, centerX + bulbRadius, neckY - 20, centerX + bulbRadius, topY);
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255, 230, 180, 0.4)';
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+
+    // Left curved specular sheen
+    ctx.beginPath();
+    ctx.moveTo(centerX - bulbRadius + 14, topY + 18);
+    ctx.quadraticCurveTo(centerX - bulbRadius + 10, neckY - 35, centerX - 18, neckY - 12);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(centerX - bulbRadius + 14, bottomY - 18);
+    ctx.quadraticCurveTo(centerX - bulbRadius + 10, neckY + 35, centerX - 18, neckY + 12);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Helper: Draw Pillars
+  function drawPillar(ctx, x, y1, y2) {
+    const grad = ctx.createLinearGradient(x - 5, 0, x + 5, 0);
+    grad.addColorStop(0, '#533c1f');
+    grad.addColorStop(0.5, '#e0b25e');
+    grad.addColorStop(1, '#483318');
+    ctx.fillStyle = grad;
+    roundRect(ctx, x - 4, y1, 8, y2 - y1, 3, true, false);
+  }
+
+  // Helper: Rounded Rectangle
+  function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
+  }
+
+  // Animation Loop (60fps)
+  function animationLoop() {
+    renderHourglass();
+    requestAnimationFrame(animationLoop);
+  }
+
+  /* Format Seconds to HH:MM:SS */
+  function formatTime(seconds) {
+    const s = Math.max(0, Math.floor(seconds));
+    const hrs = Math.floor(s / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    const secs = s % 60;
+    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+
+  /* Update UI Elements */
+  function updateUI() {
+    digitalTime.textContent = formatTime(remainingTime);
+
+    const percent = totalTime > 0 ? (remainingTime / totalTime) * 100 : 0;
+    progressBar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+    progressPercent.textContent = `${Math.round(percent)}%`;
+
+    const totalH = Math.floor(totalTime / 3600);
+    const totalM = Math.floor((totalTime % 3600) / 60);
+    const totalS = totalTime % 60;
+    let label = '총 ';
+    if (totalH > 0) label += `${totalH}시간 `;
+    if (totalM > 0 || totalH > 0) label += `${totalM}분 `;
+    label += `${totalS}초`;
+    totalTimeDisplay.textContent = label;
+
+    // Status Badge
+    if (timerState === 'running') {
+      statusIndicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 진행 중';
+      statusIndicator.className = 'inline-flex items-center gap-1.5 text-xs font-medium text-emerald-300 bg-emerald-950/50 px-3 py-1 rounded-full border border-emerald-600/40';
+      startBtn.disabled = true;
+      pauseBtn.disabled = false;
+    } else if (timerState === 'paused') {
+      statusIndicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400"></span> 일시정지';
+      statusIndicator.className = 'inline-flex items-center gap-1.5 text-xs font-medium text-amber-300 bg-amber-950/50 px-3 py-1 rounded-full border border-amber-600/40';
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+    } else if (timerState === 'finished') {
+      statusIndicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-400"></span> 완료';
+      statusIndicator.className = 'inline-flex items-center gap-1.5 text-xs font-medium text-red-300 bg-red-950/50 px-3 py-1 rounded-full border border-red-600/40';
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+    } else {
+      statusIndicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-stone-500"></span> 대기 중';
+      statusIndicator.className = 'inline-flex items-center gap-1.5 text-xs font-medium text-stone-400 bg-stone-900/60 px-3 py-1 rounded-full border border-stone-800';
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+    }
+  }
+
+  /* Timer Controls */
+  function startTimer() {
+    initAudioContext();
+
+    if (timerState === 'idle' || timerState === 'finished') {
+      const h = parseInt(inputHours.value, 10) || 0;
+      const m = parseInt(inputMinutes.value, 10) || 0;
+      const s = parseInt(inputSeconds.value, 10) || 0;
+      const calculatedSecs = h * 3600 + m * 60 + s;
+
+      if (calculatedSecs <= 0) {
+        showTemporaryNotice('시간을 1초 이상 설정해주세요!');
+        return;
+      }
+      totalTime = calculatedSecs;
+      remainingTime = calculatedSecs;
+    }
+
+    if (remainingTime <= 0) return;
+
+    timerState = 'running';
+    lastTimestamp = performance.now();
+
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      const now = performance.now();
+      const deltaSec = (now - lastTimestamp) / 1000;
+      lastTimestamp = now;
+
+      remainingTime = Math.max(0, remainingTime - deltaSec);
+      updateUI();
+
+      if (remainingTime <= 0) {
+        timerFinished();
+      }
+    }, 100);
+
+    updateUI();
+  }
+
+  function pauseTimer() {
+    if (timerState !== 'running') return;
+    timerState = 'paused';
+    if (timerInterval) clearInterval(timerInterval);
+    updateUI();
+  }
+
+  function resetTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerState = 'idle';
+    
+    // Read input fields
+    const h = parseInt(inputHours.value, 10) || 0;
+    const m = parseInt(inputMinutes.value, 10) || 0;
+    const s = parseInt(inputSeconds.value, 10) || 0;
+    const calculatedSecs = h * 3600 + m * 60 + s || 300;
+
+    totalTime = calculatedSecs;
+    remainingTime = calculatedSecs;
+    particles.length = 0;
+    stopAlarmSound();
+    alarmOverlay.classList.add('hidden');
+    updateUI();
+  }
+
+  function timerFinished() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerState = 'finished';
+    remainingTime = 0;
+    updateUI();
+    alarmOverlay.classList.remove('hidden');
+    startAlarmSound();
+  }
+
+  /* Temporary toast alert (never window.alert) */
+  function showTemporaryNotice(text) {
+    const notice = document.createElement('div');
+    notice.className = 'fixed bottom-6 bg-amber-900/90 text-amber-100 border border-amber-500/50 px-4 py-2 rounded-xl text-xs font-semibold shadow-xl z-50 transform transition-all duration-300';
+    notice.textContent = text;
+    document.body.appendChild(notice);
+    setTimeout(() => {
+      notice.style.opacity = '0';
+      notice.style.transform = 'translateY(10px)';
+      setTimeout(() => notice.remove(), 300);
+    }, 2200);
+  }
+
+  /* Hourglass 180° Flip */
+  function triggerFlip() {
+    isFlipped = !isFlipped;
+    if (isFlipped) {
+      hourglassWrapper.classList.add('hourglass-flipped');
+    } else {
+      hourglassWrapper.classList.remove('hourglass-flipped');
+    }
+    // Swap progress visually: remaining becomes elapsed
+    if (timerState === 'running' || timerState === 'paused') {
+      remainingTime = Math.max(0, totalTime - remainingTime);
+      particles.length = 0;
+      updateUI();
+    }
+  }
+
+  /* Event Listeners */
+  startBtn.addEventListener('click', startTimer);
+  pauseBtn.addEventListener('click', pauseTimer);
+  resetBtn.addEventListener('click', () => {
+    triggerFlip();
+    resetTimer();
+  });
+  flipBtn.addEventListener('click', triggerFlip);
+
+  // Time preset buttons
+  presetBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const addSeconds = parseInt(btn.dataset.sec, 10);
+      const curH = parseInt(inputHours.value, 10) || 0;
+      const curM = parseInt(inputMinutes.value, 10) || 0;
+      const curS = parseInt(inputSeconds.value, 10) || 0;
+      const newTotal = curH * 3600 + curM * 60 + curS + addSeconds;
+
+      inputHours.value = Math.floor(newTotal / 3600);
+      inputMinutes.value = Math.floor((newTotal % 3600) / 60);
+      inputSeconds.value = newTotal % 60;
+
+      if (timerState === 'idle') {
+        totalTime = newTotal;
+        remainingTime = newTotal;
+        updateUI();
+      }
+    });
+  });
+
+  clearPresetBtn.addEventListener('click', () => {
+    inputHours.value = 0;
+    inputMinutes.value = 0;
+    inputSeconds.value = 0;
+    if (timerState === 'idle') {
+      totalTime = 0;
+      remainingTime = 0;
+      updateUI();
+    }
+  });
+
+  // Manual input field changes
+  [inputHours, inputMinutes, inputSeconds].forEach(input => {
+    input.addEventListener('change', () => {
+      const h = Math.max(0, parseInt(inputHours.value, 10) || 0);
+      const m = Math.max(0, Math.min(59, parseInt(inputMinutes.value, 10) || 0));
+      const s = Math.max(0, Math.min(59, parseInt(inputSeconds.value, 10) || 0));
+      inputHours.value = h;
+      inputMinutes.value = m;
+      inputSeconds.value = s;
+
+      if (timerState === 'idle') {
+        totalTime = h * 3600 + m * 60 + s;
+        remainingTime = totalTime;
+        updateUI();
+      }
+    });
+  });
+
+  // Mute Toggle
+  muteToggle.addEventListener('click', () => {
+    isMuted = !isMuted;
+    if (isMuted) {
+      muteIcon.className = 'fa-solid fa-volume-xmark text-stone-500';
+      muteText.textContent = '음소거';
+      stopAlarmSound();
+    } else {
+      muteIcon.className = 'fa-solid fa-volume-high text-amber-400';
+      muteText.textContent = '소리 켬';
+    }
+  });
+
+  // Sound Preview Button
+  soundTestBtn.addEventListener('click', () => {
+    playChime(587.33, 0.8, 0.0);
+    playChime(739.99, 0.8, 0.2);
+    playChime(880.00, 1.2, 0.4);
+  });
+
+  // Dismiss Alarm Modal
+  dismissAlarmBtn.addEventListener('click', () => {
+    stopAlarmSound();
+    alarmOverlay.classList.add('hidden');
+    resetTimer();
+  });
+
+  // Initial Window Load
+  window.addEventListener('load', () => {
+    updateUI();
+    animationLoop();
+  });
+</script>
+</body>
+</html>
